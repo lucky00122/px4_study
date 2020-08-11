@@ -131,4 +131,5 @@ px4_add_board(
 		testapp_hello
 		testapp_subscribe
 		testapp_publish
+		sigfox
 	)
