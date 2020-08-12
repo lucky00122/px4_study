@@ -92,6 +92,7 @@ px4_add_board(
 		vtol_att_control
 		module
 		sigfox_module
+		sigfox_module_wq
 	SYSTEMCMDS
 		bl_update
 		dmesg
