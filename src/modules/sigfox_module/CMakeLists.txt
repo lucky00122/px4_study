@@ -36,8 +36,9 @@ px4_add_module(
 	MAIN sigfox_module
 	SRCS
 		sigfox_module.cpp
-		serialPort.cpp
+		sigfox_module.h
 	DEPENDS
 #		modules__uORB
+		serialPort
 	)
 

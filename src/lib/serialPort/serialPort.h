@@ -54,6 +54,8 @@ public:
 	bool WriteData( uint8_t* punData,
 					uint16_t uwSize );
 
+    bool WaitWritingCompletion( void );
+
 private:
 	bool OpenSerialPort( const char* pcUartName,
 						 int iBaudRate );

@@ -33,6 +33,7 @@
 
 #pragma once
 
+#include <lib/serialPort/serialPort.h>
 #include <lib/perf/perf_counter.h>
 #include <px4_platform_common/defines.h>
 #include <px4_platform_common/module.h>
@@ -44,6 +45,11 @@
 #include <uORB/Publication.hpp>
 #include <uORB/Subscription.hpp>
 #include <uORB/SubscriptionCallback.hpp>
+
+//#define TEST_FOR_RECEIVE_RESPONSE
+
+#define SIGFOX_WQ_UART_DEVICE_NAME "/dev/ttyS3"    // UART4/TELEM4
+#define SIGFOX_WQ_UART_BAUDRATE    9600
 
 class sigfox_module_wq : public ModuleBase<sigfox_module_wq>, public ModuleParams, public px4::ScheduledWorkItem
 {
@@ -75,4 +81,6 @@ private:
 
 	perf_counter_t	_loop_perf{perf_alloc(PC_ELAPSED, MODULE_NAME": cycle")};
 	perf_counter_t	_loop_interval_perf{perf_alloc(PC_INTERVAL, MODULE_NAME": interval")};
+	
+	serialPort m_sigfoxPort_wq{ SIGFOX_WQ_UART_DEVICE_NAME, SIGFOX_WQ_UART_BAUDRATE };
 };

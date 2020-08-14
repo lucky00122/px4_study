@@ -35,6 +35,8 @@
 
 #include <drivers/drv_hrt.h>
 
+#include <fcntl.h>
+
 using namespace time_literals;
 
 sigfox_module_wq::sigfox_module_wq() :
@@ -47,12 +49,13 @@ sigfox_module_wq::~sigfox_module_wq()
 {
 	perf_free(_loop_perf);
 	perf_free(_loop_interval_perf);
+	m_sigfoxPort_wq.InitSerialPort( FALSE );
 }
 
 bool sigfox_module_wq::init()
 {
-	ScheduleOnInterval(1000_us); // 1000 us interval, 1000 Hz rate
-
+	ScheduleOnInterval(60_s); // 1000 us interval, 1000 Hz rate
+	
 	return true;
 }
 
@@ -69,8 +72,9 @@ void sigfox_module_wq::Run()
 
 
 	// DO WORK
+	
 
-
+#if 0
 	// Example
 	// grab latest accelerometer data
 	_sensor_accel_sub.update();
@@ -93,6 +97,76 @@ void sigfox_module_wq::Run()
 	const orb_test_s &test = _orb_test_sub.get();
 
 	printf("id:%d, testid:%d\n", accel.device_id, test.val);
+#endif
+#else
+	char pcCmdIn[64];
+	time_t timep; 
+	struct tm *pcurTime;
+#ifdef TEST_FOR_RECEIVE_RESPONSE
+    char pcResp[64];
+    uint8_t nData = 0;
+    int16_t wSizeRead = 0;
+    int i = 0;
+#endif
+		
+	time( &timep );
+		
+	pcurTime = gmtime( &timep );
+
+	sprintf( pcCmdIn, "AT$SF=%04d%02d%02d%02d%02d%02d,1", 
+			( pcurTime->tm_year + 1900 ), ( pcurTime->tm_mon + 1 ), pcurTime->tm_mday, 
+			pcurTime->tm_hour, pcurTime->tm_min, pcurTime->tm_sec );
+
+	printf( "%s\n", pcCmdIn );
+	
+    // Open UART Port
+    if( !m_sigfoxPort_wq.InitSerialPort( TRUE ) )
+    {
+        printf("ERROR: OpenPort fail.\n" );
+    }
+	else
+	{
+    	printf("\nEnter Sigfox Module, Sigfox message will be sent per minute\n\n");
+	}
+	
+	if(!m_sigfoxPort_wq.WriteData( ( uint8_t* )pcCmdIn, ( strlen( pcCmdIn ) + 1 ) ))
+	{
+        printf("ERROR: WriteData fail. (errno:%d %s)\n", errno, strerror( errno ) );
+
+		return;
+	}
+
+#ifdef TEST_FOR_RECEIVE_RESPONSE
+    printf( "\nWaiting for Sigfox response...\n\n" );
+
+	// Wait and read the response from Sigfox module
+	while( !should_exit() && pcResp[i-1] != '\n' )
+	{
+	    wSizeRead = m_sigfoxPort_wq.ReadData( &nData, 1 );
+
+	    if( wSizeRead > 0 )
+	    {
+	        pcResp[i++] = nData;
+	    }
+	}
+
+	if( !should_exit() )
+	{
+	   	pcResp[i-1] = 0x00;
+
+	   	printf( "%s\n", pcResp );
+
+	   	i = 0;
+	   	memset( pcResp, 0, sizeof(pcResp) );
+	}
+#else
+	px4_usleep(100_ms);
+#endif
+
+	m_sigfoxPort_wq.InitSerialPort( FALSE );
+	
+    printf("\nGoodbye Sigfox Module...\n\n");
+
 #endif
 
 	perf_end(_loop_perf);

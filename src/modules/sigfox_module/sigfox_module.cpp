@@ -40,8 +40,9 @@
 #include <uORB/topics/parameter_update.h>
 #include <uORB/topics/sensor_combined.h>
 
-#include "serialPort.h"
 #include <time.h>
+
+#include <lib/serialPort/serialPort.h>
 
 serialPort sigfoxPort( SIGFOX_UART_DEVICE_NAME, SIGFOX_UART_BAUDRATE );
 
@@ -212,6 +213,8 @@ void Sigfox_module::run()
 		printf( "%s\n", pcCmdIn );
 			
 		sigfoxPort.WriteData( ( uint8_t* )pcCmdIn, ( strlen( pcCmdIn ) + 1 ) );
+
+        printf( "\nWaiting for Sigfox response...\n\n" );
 
 		// Wait and read the response from Sigfox module
 	    while( !should_exit() && pcResp[i-1] != '\n' )

@@ -1,6 +1,6 @@
 ############################################################################
 #
-#   Copyright (c) 2020 PX4 Development Team. All rights reserved.
+#   Copyright (c) 2018 PX4 Development Team. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -31,13 +31,9 @@
 #
 ############################################################################
 
-px4_add_module(
-	MODULE module__sigfox_module_wq
-	MAIN sigfox_module_wq
-	SRCS
-		sigfox_module_wq.cpp
-		sigfox_module_wq.hpp
-	DEPENDS
-		px4_work_queue
-		serialPort
-	)
+px4_add_library(serialPort serialPort.cpp)
+
+target_include_directories(serialPort
+	PUBLIC
+	${CMAKE_CURRENT_SOURCE_DIR}
+)

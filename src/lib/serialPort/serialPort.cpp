@@ -1,3 +1,5 @@
+#include <px4_platform_common/log.h>
+
 #include "serialPort.h"
 #include <string.h>
 
@@ -122,8 +124,24 @@ bool serialPort::WriteData( uint8_t* punData,
 	// Unlock
 	pthread_mutex_unlock( &m_sWriteMutex );
 
-
 	return ( wBytesWritten == -1 )? FALSE: TRUE;
+}
+
+bool serialPort::WaitWritingCompletion( void )
+{	
+	if( m_fdPort == -1 )
+	{
+		return FALSE;
+	}
+
+	if( fsync( m_fdPort ) == -1 )
+	{
+        printf("ERROR: WaitWritingCompletion fail. (errno:%d %s)\n", errno, strerror( errno ) );
+		
+		return FALSE;
+	}
+		
+	return TRUE;
 }
 
 
@@ -170,7 +188,16 @@ bool serialPort::OpenSerialPort( const char* pcUartName,
 
 bool serialPort::CloseSerialPort( void )
 {
-	int iResult = close( m_fdPort );
+	int iResult = 0;
+
+	if( m_fdPort == -1 )
+	{
+		return FALSE;
+	}
+	
+	iResult = close( m_fdPort );
+
+	m_fdPort = -1;
 
 	if ( iResult )
 	{
@@ -183,6 +210,13 @@ bool serialPort::CloseSerialPort( void )
 
 bool serialPort::OpenPort( const char* pcPortName )
 {
+	if( m_fdPort != -1 )
+	{
+        PX4_WARN("%s port is already opened. fd:%d\n", pcPortName, m_fdPort );
+		
+		return FALSE;
+	}
+
 	// Open serial port
 	// O_RDWR - Read and write
 	// O_NOCTTY - Ignore special chars like CTRL-C
