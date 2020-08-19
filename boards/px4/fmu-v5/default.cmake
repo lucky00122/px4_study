@@ -135,4 +135,5 @@ px4_add_board(
 		testapp_subscribe
 		testapp_publish
 		sigfox
+		visca
 	)
