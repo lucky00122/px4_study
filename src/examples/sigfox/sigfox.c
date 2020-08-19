@@ -279,7 +279,7 @@ bool OpenPort( const char* pcPortName )
 
     if ( sigfox_fd == -1 )
     {
-        printf("ERROR: Could not open port. (errno:%d %s)\n", errno, strerror( errno ) );
+        printf( "ERROR: Could not open port. (errno:%d %s)\n", errno, strerror( errno ) );
         return false;
     }
 
