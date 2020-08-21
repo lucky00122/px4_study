@@ -93,6 +93,7 @@ px4_add_board(
 		module
 		sigfox_module
 		sigfox_module_wq
+		sigfox_sender
 	SYSTEMCMDS
 		bl_update
 		dmesg

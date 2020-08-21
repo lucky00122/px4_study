@@ -61,13 +61,13 @@ bool serialPort::InitSerialPort( bool bInit )
 		if ( pthread_mutex_init( &m_sReadMutex,
 								 reinterpret_cast< const pthread_mutexattr_t * >( NULL ) ) )
 		{
-			printf( "ERROR: SerialPort Read Mutex init failed\n" );
+			PX4_ERR( "SerialPort Read Mutex init failed" );
 		}
 
 		if ( pthread_mutex_init( &m_sWriteMutex,
 								 reinterpret_cast< const pthread_mutexattr_t * >( NULL ) ) )
 		{
-			printf( "ERROR: SerialPort Write Mutex init failed\n" );
+			PX4_ERR( "SerialPort Write Mutex init failed" );
 		}
 
 		bRet = OpenSerialPort( m_pcUartName,
@@ -136,7 +136,7 @@ bool serialPort::WaitWritingCompletion( void )
 
 	if( fsync( m_fdPort ) == -1 )
 	{
-        printf("ERROR: WaitWritingCompletion fail. (errno:%d %s)\n", errno, strerror( errno ) );
+        PX4_ERR( "WaitWritingCompletion fail. (errno:%d %s)", errno, strerror( errno ) );
 		
 		return FALSE;
 	}
@@ -158,7 +158,7 @@ bool serialPort::OpenSerialPort( const char* pcUartName,
 
 	if ( !OpenPort( pcUartName ) )
 	{
-		printf( "ERROR: Open port NG (UART NAME: %s) -> errno %d:%s\n",
+		PX4_ERR( "Open port NG (UART NAME: %s) -> errno %d:%s",
 					 pcUartName, errno, strerror(errno) );	// errno = EPERM, ...
 		return FALSE;
 	}
@@ -172,7 +172,7 @@ bool serialPort::OpenSerialPort( const char* pcUartName,
 					 false,
 					 false ) )
 	{
-        printf("ERROR: SetupPort fail.\n" );
+        PX4_ERR( "SetupPort fail" );
 
 		return FALSE;
 	}
@@ -180,7 +180,7 @@ bool serialPort::OpenSerialPort( const char* pcUartName,
 	// --------------------------------------------------------------------------
 	//   CONNECTED!
 	// --------------------------------------------------------------------------
-	printf("Connected to %s with %d baud, 8 data bits, no parity, 1 stop bit (8N1)\n\n", pcUartName, iBaudRate);
+	//PX4_INFO( "Connected to %s with %d baud, 8 data bits, no parity, 1 stop bit (8N1)", pcUartName, iBaudRate);
 
 	return TRUE;
 }
@@ -201,7 +201,7 @@ bool serialPort::CloseSerialPort( void )
 
 	if ( iResult )
 	{
-		printf( "ERROR: Error on port close (%i)\n", iResult );
+		PX4_ERR( "Error on port close (%i)", iResult );
 		return FALSE;
 	}
 
@@ -212,9 +212,9 @@ bool serialPort::OpenPort( const char* pcPortName )
 {
 	if( m_fdPort != -1 )
 	{
-        PX4_WARN("%s port is already opened. fd:%d\n", pcPortName, m_fdPort );
+        //PX4_WARN("%s port is already opened. fd:%d\n", pcPortName, m_fdPort );
 		
-		return FALSE;
+		return TRUE;
 	}
 
 	// Open serial port
@@ -224,7 +224,7 @@ bool serialPort::OpenPort( const char* pcPortName )
 
 	if ( m_fdPort == -1 )
 	{
-        printf("ERROR: Could not open port. (errno:%d %s)\n", errno, strerror( errno ) );
+        PX4_ERR( "Could not open port. (errno:%d %s)", errno, strerror( errno ) );
 		
 		return FALSE;
 	}
@@ -232,7 +232,7 @@ bool serialPort::OpenPort( const char* pcPortName )
 	// Check file descriptor
 	if( !isatty( m_fdPort ) )
 	{
-		printf( "ERROR: file descriptor %d is NOT a serial port\n", m_fdPort );
+		PX4_ERR( "file descriptor %d is NOT a serial port", m_fdPort );
 
 		CloseSerialPort();
 		
@@ -255,7 +255,7 @@ bool serialPort::SetupPort( int iBaudRate,
 	
 	if( tcgetattr( m_fdPort, &config ) < 0 )
 	{
-		printf( "ERROR: could not read configuration of m_fdPort %d\n", m_fdPort );
+		PX4_ERR( "could not read configuration of m_fdPort %d", m_fdPort );
 		return FALSE;
 	}
 
@@ -313,7 +313,7 @@ bool serialPort::SetupPort( int iBaudRate,
 		case 1200:
 			if ( cfsetispeed( &config, B1200 ) < 0 || cfsetospeed( &config, B1200 ) < 0 )
 			{
-				printf( "ERROR: Could not set desired baud rate of %d Baud\n", iBaudRate );
+				PX4_ERR( "Could not set desired baud rate of %d Baud", iBaudRate );
 				
 				return FALSE;
 			}
@@ -325,7 +325,7 @@ bool serialPort::SetupPort( int iBaudRate,
 		case 9600:
             if( cfsetispeed( &config, B9600 ) < 0 || cfsetospeed( &config, B9600 ) < 0 )
             {
-                printf( "ERROR: Could not set desired baud rate of %d Baud\n", iBaudRate );
+                PX4_ERR( "Could not set desired baud rate of %d Baud", iBaudRate );
                 return false;
             }
 			break;
@@ -336,7 +336,7 @@ bool serialPort::SetupPort( int iBaudRate,
 		case 38400:
 			if ( cfsetispeed( &config, B38400 ) < 0 || cfsetospeed( &config, B38400 ) < 0 )
 			{
-				printf( "ERROR: Could not set desired baud rate of %d Baud\n", iBaudRate );
+				PX4_ERR( "Could not set desired baud rate of %d Baud", iBaudRate );
 				
 				return FALSE;
 			}
@@ -344,7 +344,7 @@ bool serialPort::SetupPort( int iBaudRate,
 		case 57600:
 			if ( cfsetispeed( &config, B57600 ) < 0 || cfsetospeed( &config, B57600 ) < 0 )
 			{
-				printf( "ERROR: Could not set desired baud rate of %d Baud\n", iBaudRate );
+				PX4_ERR( "Could not set desired baud rate of %d Baud", iBaudRate );
 				
 				return FALSE;
 			}
@@ -352,7 +352,7 @@ bool serialPort::SetupPort( int iBaudRate,
 		case 115200:
 			if ( cfsetispeed( &config, B115200 ) < 0 || cfsetospeed( &config, B115200 ) < 0 )
 			{
-				printf( "ERROR: Could not set desired baud rate of %d Baud\n", iBaudRate );
+				PX4_ERR( "Could not set desired baud rate of %d Baud", iBaudRate );
 				
 				return FALSE;
 			}
@@ -363,7 +363,7 @@ bool serialPort::SetupPort( int iBaudRate,
 		case 460800:
 			if ( cfsetispeed( &config, B460800 ) < 0 || cfsetospeed( &config, B460800 ) < 0 )
 			{
-				printf( "ERROR: Could not set desired baud rate of %d Baud\n", iBaudRate);
+				PX4_ERR( "Could not set desired baud rate of %d Baud", iBaudRate);
 				
 				return FALSE;
 			}
@@ -371,13 +371,13 @@ bool serialPort::SetupPort( int iBaudRate,
 		case 921600:
 			if ( cfsetispeed( &config, B921600 ) < 0 || cfsetospeed( &config, B921600 ) < 0 )
 			{
-				printf( "ERROR: Could not set desired baud rate of %d Baud\n", iBaudRate );
+				PX4_ERR( "Could not set desired baud rate of %d Baud", iBaudRate );
 				
 				return FALSE;
 			}
 			break;
 		default:
-			printf( "ERROR: Desired baud rate %d could not be set, aborting.\n", iBaudRate );
+			PX4_ERR( "Desired baud rate %d could not be set, aborting.", iBaudRate );
 			
 			return FALSE;
 	}
@@ -385,7 +385,7 @@ bool serialPort::SetupPort( int iBaudRate,
 	// Finally, apply the configuration
 	if( tcsetattr( m_fdPort, TCSANOW, &config ) < 0 )
 	{
-        printf("ERROR: Could not set configuration. (errno:%d %s)\n", errno, strerror( errno ) );
+        PX4_ERR( "Could not set configuration. (errno:%d %s)", errno, strerror( errno ) );
 		
 		return FALSE;
 	}

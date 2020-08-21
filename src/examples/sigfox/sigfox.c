@@ -41,13 +41,15 @@
 #include <string.h>
 #include <px4_platform_common/posix.h>
 #include <px4_log.h>
+#include <uORB/topics/sigfox_data.h>
 //#include <px4_time.h>
-//#include <uORB/uORB.h>
+#include <uORB/uORB.h>
 //#include <uORB/topics/sensor_combined.h>
 //#include <uORB/topics/vehicle_attitude.h>
 #ifdef __PX4_NUTTX
-#include <nuttx/fs/fs.h>
+//#include <nuttx/fs/fs.h>
 #endif
+//#include <fcntl.h>
 #include <errno.h>
 #include <unistd.h>
 #include <termios.h>
@@ -86,6 +88,7 @@ int sigfox_main(int argc, char *argv[])
     int i = 0;
     int iCmdIn = 0;
     int iCmdIdx = 0;
+    struct sigfox_data_s sSigfoxData = {0};
 
     // Open UART Port
     if( !OpenPort( SIGFOX_UART_DEVICE_NAME ) )
@@ -102,6 +105,9 @@ int sigfox_main(int argc, char *argv[])
 
         return ERROR;
     }
+    
+    int sigfox_data_sub_fd = orb_subscribe( ORB_ID( sigfox_data ) );
+    orb_advert_t sigfox_data_pub_fd = orb_advertise( ORB_ID( sigfox_data ), &sSigfoxData );
 
     printf("\nEnter Sigfox Command Mode, Please Enter AT Command...\n\n");
 
@@ -161,6 +167,25 @@ int sigfox_main(int argc, char *argv[])
         else if( !strcmp( pcCmdIn, "q" ) )    // exit sigfox cli
         {
             break;
+        }
+        else if( !strcmp( pcCmdIn, "send" ) )    // send sigfox message through sigfox_sender
+        {
+	    	orb_copy( ORB_ID( sigfox_data ), sigfox_data_sub_fd, &sSigfoxData );
+
+            if( sSigfoxData.bstartsend )
+            {
+                PX4_WARN( "Sigfox module is busy" );
+            }
+            else
+            {
+                memset( &sSigfoxData, 0, sizeof( sSigfoxData ) );
+
+                sSigfoxData.bstartsend = TRUE;
+                
+                orb_publish( ORB_ID( sigfox_data ), sigfox_data_pub_fd, &sSigfoxData );
+            }
+            
+            continue;
         }
 
         // Send the command to Sigfox module
@@ -290,6 +315,8 @@ bool OpenPort( const char* pcPortName )
         ClosePort();
         return false;
     }
+
+    //printf("sigfox_fd:%d\n", sigfox_fd);
 
     //fcntl( sigfox_fd, F_SETFL, 0 );
 

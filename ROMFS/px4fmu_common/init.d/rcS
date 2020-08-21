@@ -569,6 +569,11 @@ else
 fi
 
 #
+# Custom autostart
+#
+sigfox_sender start
+
+#
 # Unset all script parameters to free RAM.
 #
 unset AUTOCNF
