@@ -57,6 +57,7 @@
 #define SIGFOX_UART_DEVICE_NAME "/dev/ttyS3"    // UART4/TELEM4
 #define SIGFOX_UART_BAUDRATE    9600
 #define SIGFOX_UART_TEST_STR    "AT"
+#define CLI_ARGC_MAX            8
 
 __EXPORT int sigfox_main(int argc, char *argv[]);
 
@@ -81,6 +82,8 @@ int sigfox_fd = -1;
 int sigfox_main(int argc, char *argv[])
 {
     char pcCmdIn[64];
+    char* psCmdArgv[CLI_ARGC_MAX];
+    int iCmdArgc = 0;
     char pcResp[64];
     //char* pcRet = NULL;
     uint8_t nData = 0;
@@ -105,9 +108,15 @@ int sigfox_main(int argc, char *argv[])
 
         return ERROR;
     }
-    
-    int sigfox_data_sub_fd = orb_subscribe( ORB_ID( sigfox_data ) );
+
+    // Subscribe and Advertise sigfox_data Topic
     orb_advert_t sigfox_data_pub_fd = orb_advertise( ORB_ID( sigfox_data ), &sSigfoxData );
+    int sigfox_data_sub_fd = orb_subscribe( ORB_ID( sigfox_data ) );
+    orb_set_interval( sigfox_data_sub_fd, 200 );	// 200ms
+    px4_pollfd_struct_t fds[] = 
+    {
+    	{ .fd = sigfox_data_sub_fd,	.events = POLLIN },
+    };
 
     printf("\nEnter Sigfox Command Mode, Please Enter AT Command...\n\n");
 
@@ -117,10 +126,12 @@ int sigfox_main(int argc, char *argv[])
 
         fflush( stdout );
 
+        iCmdIdx = 0;
+
         while(1)
         {
             iCmdIn = getchar();
-
+                
             // CLI Interface Editing
             if( iCmdIn == EOF )
             {
@@ -128,11 +139,9 @@ int sigfox_main(int argc, char *argv[])
                 
                 return ERROR;
             }
-            else if( iCmdIn == '\r' )   // command end
+            else if( iCmdIn == '\r' || iCmdIn == 0x0A )   // command end
             {
                 pcCmdIn[iCmdIdx] = 0x00;
-
-                iCmdIdx = 0;
                 
                 printf( "\r\n" );
                 
@@ -168,24 +177,97 @@ int sigfox_main(int argc, char *argv[])
         {
             break;
         }
-        else if( !strcmp( pcCmdIn, "send" ) )    // send sigfox message through sigfox_sender
+        else
         {
-	    	orb_copy( ORB_ID( sigfox_data ), sigfox_data_sub_fd, &sSigfoxData );
-
-            if( sSigfoxData.bstartsend )
-            {
-                PX4_WARN( "Sigfox module is busy" );
-            }
-            else
-            {
-                memset( &sSigfoxData, 0, sizeof( sSigfoxData ) );
-
-                sSigfoxData.bstartsend = TRUE;
-                
-                orb_publish( ORB_ID( sigfox_data ), sigfox_data_pub_fd, &sSigfoxData );
-            }
+            iCmdArgc = 0;
             
-            continue;
+            psCmdArgv[iCmdArgc] = strtok( pcCmdIn, " " );
+              
+            while( psCmdArgv[iCmdArgc] != NULL && iCmdArgc < ( CLI_ARGC_MAX - 1 ) )
+            {
+                iCmdArgc++;
+                
+                psCmdArgv[iCmdArgc] = strtok( NULL, " " );
+            }
+
+            if( iCmdArgc >= CLI_ARGC_MAX )
+            {
+                printf( "[ERROR] Too many command\n" );
+                    
+                continue;
+            }
+
+            if( !strcmp( psCmdArgv[0], "send" ) )    // send sigfox message through sigfox_sender module
+            {
+    	    	orb_copy( ORB_ID( sigfox_data ), sigfox_data_sub_fd, &sSigfoxData );
+
+                if( sSigfoxData.bstartsend )
+                {
+                    printf( "[WARN] Sigfox module is busy\n" );
+                }
+                else
+                {
+                    // Set Sigfox start sending signal
+                    
+                    //memset( &sSigfoxData, 0, sizeof( sSigfoxData ) );
+
+                    sSigfoxData.bstartsend = TRUE;
+
+                    if( psCmdArgv[1] != NULL )
+                    {
+                        sSigfoxData.unformat = (uint8_t)strtol( psCmdArgv[1], NULL, 10 );
+                    }
+                    else
+                    {
+                        sSigfoxData.unformat = 0;
+                    }
+                    
+                    orb_publish( ORB_ID( sigfox_data ), sigfox_data_pub_fd, &sSigfoxData );
+                
+                    printf( "Notify sigfox_sender module to send and wait for response...\n" );
+
+
+                    while(1)
+                    {
+                		// Polling Sigfox sending start signal to be reset
+                		int poll_ret = px4_poll( fds, 1, 1000 );	// Wait 1 file descriptor's data updated for 1 seconds.
+
+                		if( poll_ret == 0 )		// Time out
+                        {
+                            //printf( "No data time-out\n" );
+                        }
+                        else if( poll_ret < 0 )		// Error
+                        {
+                            printf( "[ERROR] return value from px4_poll(): %d\n", poll_ret );
+
+                			break;
+                        }
+                        else
+                        {
+                		    if( fds[0].revents & POLLIN )	// data updated
+                		    {
+                                memset( &sSigfoxData, 0, sizeof( sSigfoxData ) );
+                            
+                		    	orb_copy( ORB_ID( sigfox_data ), sigfox_data_sub_fd, &sSigfoxData );
+
+                                if( !sSigfoxData.bstartsend )
+                                {
+                	 	    	    printf( "Sigfox sent complete. msg: %s\n", sSigfoxData.clastsentmsg );
+                                    
+                			        break;
+
+                                }
+                            }
+                			else
+                			{
+                            	printf( "Another event occurs: 0x%x\n", fds[0].revents );
+                			}
+                        }
+                    }
+                }
+                
+                continue;
+            }
         }
 
         // Send the command to Sigfox module
@@ -205,6 +287,7 @@ int sigfox_main(int argc, char *argv[])
             else
             {
                 //printf("ERROR: ReadData fail.\n" );
+                px4_usleep(100000);  // sleep for not blocking the process
             }
         }
 
@@ -315,8 +398,6 @@ bool OpenPort( const char* pcPortName )
         ClosePort();
         return false;
     }
-
-    //printf("sigfox_fd:%d\n", sigfox_fd);
 
     //fcntl( sigfox_fd, F_SETFL, 0 );
 

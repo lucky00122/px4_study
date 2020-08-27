@@ -153,8 +153,12 @@ void sigfox_sender::run()
 #endif
 #else
 	char pcCmdIn[64];
+	char pcGpsStr[25];
 	sigfox_data_s sRecvSigfoxCtl = {0};
 	sigfox_data_s sSendSigfoxCtl = {0};
+	uint32_t	 uwLat = 0;
+	uint32_t	 uwLon = 0;
+	uint16_t	 uwAlt = 0;
     int sigfox_data_sub_fd = 0;
     orb_advert_t sigfox_data_pub_fd = NULL;
 	vehicle_gps_position_s sGpsData = {0};
@@ -213,7 +217,7 @@ void sigfox_sender::run()
         }
         else if( poll_ret < 0 )		// Error
         {
-            PX4_ERR( "ERROR return value from px4_poll(): %d", poll_ret );
+            PX4_ERR( "return value from px4_poll(): %d", poll_ret );
 
 			return;
         }
@@ -256,13 +260,25 @@ void sigfox_sender::run()
 	#else
 		m_vehicle_gps_position_sub.update();
 		sGpsData = m_vehicle_gps_position_sub.get();
-	
-		sprintf( pcCmdIn, "AT$SF=%010dAA%010d,1", sGpsData.lat, sGpsData.lon );
+		uwLat = sGpsData.lat / 1000;	// remove the last 3 number to reduce sigfox message bytes (0XX.XXXX)
+		uwLon = sGpsData.lon / 1000;	// remove the last 3 number to reduce sigfox message bytes (XXX.XXXX)
+		uwAlt = sGpsData.alt / 1000;	// remove the last 3 number to reduce sigfox message bytes (m)
+
+		if( sRecvSigfoxCtl.unformat == SIGFOX_MSG_FORMAT_BYTES )
+		{
+			sprintf( pcGpsStr, "%06x%06x%04x", uwLat, uwLon, uwAlt );
+		}
+		else
+		{
+			sprintf( pcGpsStr, "%07dA%07dA%04d", uwLat, uwLon, uwAlt );
+		}
+		
+		sprintf( pcCmdIn, "AT$SF=%s,1", pcGpsStr );
 	#endif
 		
-	    PX4_INFO( "Send Sigfox: %s", pcCmdIn);
+	    PX4_INFO( "Send Sigfox: %s", pcCmdIn );
 		
-		if(!m_sigfoxPort.WriteData( ( uint8_t* )pcCmdIn, ( strlen( pcCmdIn ) + 1 ) ))
+		if( !m_sigfoxPort.WriteData( ( uint8_t* )pcCmdIn, ( strlen( pcCmdIn ) + 1 ) ) )
 		{
 	        PX4_ERR( "WriteData fail. (errno:%d %s)", errno, strerror( errno ) );
 
@@ -281,6 +297,10 @@ void sigfox_sender::run()
 		    {
 		        pcResp[i++] = nData;
 		    }
+			else
+			{
+                px4_usleep(100_ms);  // sleep for not blocking the process
+			}
 		}
 
 		if( !should_exit() )
@@ -293,8 +313,9 @@ void sigfox_sender::run()
 		   	memset( pcResp, 0, sizeof(pcResp) );
 		}
 		
-		// Update the sigfox starting signal to FASLE
+		// Update the sigfox starting signal and message
 		sSendSigfoxCtl.bstartsend = FALSE;
+		memcpy( sSendSigfoxCtl.clastsentmsg, pcGpsStr, ( strlen( pcCmdIn ) + 1 ) );
 			
         orb_publish( ORB_ID( sigfox_data ), sigfox_data_pub_fd, &sSendSigfoxCtl );
 #else

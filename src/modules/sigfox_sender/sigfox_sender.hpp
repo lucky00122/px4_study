@@ -49,6 +49,12 @@
 #define UART_DEVICE_NAME "/dev/ttyS3"    // UART4/TELEM4
 #define UART_BAUDRATE    9600
 
+typedef enum _SIGFOX_MSG_FORMAT
+{
+	SIGFOX_MSG_FORMAT_READABLE	= 0x00,	// readable format. (0XX.XXXXAXXX.XXXXAXXXX -> [Latitude]A[Longitude]A[Altitude])
+	SIGFOX_MSG_FORMAT_BYTES		= 0x01	// bytes format. (XXXXXXYYYYYYZZZZ -> [Latitude 3 bytes]A[Longitude 3 bytes]A[Altitude 2 bytes])
+}SIGFOX_MSG_FORMAT, *PSIGFOX_MSG_FORMAT;
+
 extern "C" __EXPORT int sigfox_sender_main(int argc, char *argv[]);
 
 class sigfox_sender : public ModuleBase<sigfox_sender>, public ModuleParams
