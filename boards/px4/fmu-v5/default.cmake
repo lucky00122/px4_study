@@ -137,4 +137,5 @@ px4_add_board(
 		testapp_publish
 		sigfox
 		visca
+		sigfox_steven
 	)
